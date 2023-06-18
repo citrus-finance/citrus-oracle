@@ -33,13 +33,13 @@ contract MockCToken is ERC20 {
 
 contract MasterPriceOracleTest is Test {
     function testBaseCurrency() public {
-        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0));
+        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0), false);
 
         assertEq(oracle.price(address(840)), 1e18);
     }
 
     function testOracle() public {
-        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0));
+        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0), false);
 
         address token = makeAddr("token 1");
 
@@ -52,7 +52,7 @@ contract MasterPriceOracleTest is Test {
     }
 
     function testGetUnderlyingPriceWith18Decimals() public {
-        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0));
+        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0), false);
 
         MockERC20 token = new MockERC20("Wrapped Ether", "WETH", 18);
         MockCToken cToken = new MockCToken("Citrus Wrapped Ether", "WETH", 18, address(token));
@@ -66,7 +66,7 @@ contract MasterPriceOracleTest is Test {
     }
 
     function testGetUnderlyingPriceWith8Decimals() public {
-        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0));
+        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0), false);
 
         MockERC20 token = new MockERC20("Wrapped BTC", "WBTC", 8);
         MockCToken cToken = new MockCToken("Citrus Wrapped BTC", "WBTC", 8, address(token));
@@ -80,7 +80,7 @@ contract MasterPriceOracleTest is Test {
     }
 
     function testGetUnderlyingPriceWith36Decimals() public {
-        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0));
+        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0), false);
 
         MockERC20 token = new MockERC20("Wrapped BTC", "WBTC", 36);
         MockCToken cToken = new MockCToken("Citrus Wrapped BTC", "WBTC", 36, address(token));
@@ -94,7 +94,7 @@ contract MasterPriceOracleTest is Test {
     }
 
     function testTrySettingOracleAsUser() public {
-        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0));
+        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0), false);
 
         address token = makeAddr("token 1");
 
@@ -107,7 +107,7 @@ contract MasterPriceOracleTest is Test {
     }
 
     function testClearingOracle() public {
-        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0));
+        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0), false);
 
         address token = makeAddr("token 1");
 
@@ -125,7 +125,7 @@ contract MasterPriceOracleTest is Test {
     }
 
     function testClearingOracleAsGuardian() public {
-        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0));
+        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0), false);
 
         address guardian = makeAddr("guardian");
         oracle.changeGuardian(guardian);
@@ -147,7 +147,7 @@ contract MasterPriceOracleTest is Test {
     }
 
     function testTryClearingOracleAsUser() public {
-        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0));
+        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0), false);
 
         address guardian = makeAddr("guardian");
         oracle.changeGuardian(guardian);
@@ -166,28 +166,98 @@ contract MasterPriceOracleTest is Test {
         oracle.clear(toArray(token));
     }
 
+    function testDefaultOracleForNotSetupOracle() public {
+        address token = makeAddr("token 1");
+
+        MasterPriceOracle defaultOracle = new MasterPriceOracle(address(this), address(840), address(0), false);
+
+        MockOracle mockOracle1 = new MockOracle();
+        mockOracle1.harnessSetPrice(token, 0.5e18);
+
+        defaultOracle.add(toArray(token), toArray(address(mockOracle1)));
+
+        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(defaultOracle), false);
+
+        assertEq(oracle.price(token), 0.5e18);
+    }
+
+    function testDefaultOracleWithProperlySetupOracle() public {
+        address token = makeAddr("token 1");
+
+        MasterPriceOracle defaultOracle = new MasterPriceOracle(address(this), address(840), address(0), false);
+
+        MockOracle mockOracle1 = new MockOracle();
+        mockOracle1.harnessSetPrice(token, 0.5e18);
+
+        defaultOracle.add(toArray(token), toArray(address(mockOracle1)));
+
+        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(defaultOracle), false);
+
+        MockOracle mockOracle2 = new MockOracle();
+        mockOracle2.harnessSetPrice(token, 1e18);
+
+        oracle.add(toArray(token), toArray(address(mockOracle2)));
+
+        assertEq(oracle.price(token), 1e18);
+    }
+
+    function testCallFirstDefaultOracle() public {
+        address token = makeAddr("token 1");
+
+        MasterPriceOracle defaultOracle = new MasterPriceOracle(address(this), address(840), address(0), false);
+
+        MockOracle mockOracle1 = new MockOracle();
+        mockOracle1.harnessSetPrice(token, 0.5e18);
+
+        defaultOracle.add(toArray(token), toArray(address(mockOracle1)));
+
+        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(defaultOracle), true);
+
+        MockOracle mockOracle2 = new MockOracle();
+        mockOracle2.harnessSetPrice(token, 1e18);
+
+        oracle.add(toArray(token), toArray(address(mockOracle2)));
+
+        assertEq(oracle.price(token), 0.5e18);
+    }
+
+    function testCallFirstWithInvalidDefaultOracle() public {
+        address token = makeAddr("token 1");
+
+        MasterPriceOracle defaultOracle = new MasterPriceOracle(address(this), address(840), address(0), false);
+
+        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(defaultOracle), true);
+
+        MockOracle mockOracle2 = new MockOracle();
+        mockOracle2.harnessSetPrice(token, 1e18);
+
+        oracle.add(toArray(token), toArray(address(mockOracle2)));
+
+        assertEq(oracle.price(token), 1e18);
+    }
+
     function testIncorrectBaseCurrencyInContructor() public {
-        MasterPriceOracle defaultOracle = new MasterPriceOracle(address(this), address(840), address(0));
+        MasterPriceOracle defaultOracle = new MasterPriceOracle(address(this), address(840), address(0), false);
 
         vm.expectRevert("Oracle baseCurrency needs to be the same as defaultOracle");
-        new MasterPriceOracle(address(this), address(0), address(defaultOracle));
+        new MasterPriceOracle(address(this), address(0), address(defaultOracle), false);
     }
 
     function testSetDefaultOracleWithIncorrectBaseCurrency() public {
-        MasterPriceOracle defaultOracle = new MasterPriceOracle(address(this), address(840), address(0));
-        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(0), address(0));
+        MasterPriceOracle defaultOracle = new MasterPriceOracle(address(this), address(840), address(0), false);
+        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(0), address(0), false);
 
         vm.expectRevert("Oracle baseCurrency needs to be the same as defaultOracle");
-        oracle.setDefaultOracle(address(defaultOracle));
+        oracle.setDefaultOracle(address(defaultOracle), false);
     }
 
     function testTrySettingDefaultOracleAsUser() public {
-        MasterPriceOracle defaultOracle = new MasterPriceOracle(address(this), address(840), address(0));
-        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0));
+        MasterPriceOracle defaultOracle = new MasterPriceOracle(address(this), address(840), address(0), false);
+        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0), false);
 
         vm.prank(makeAddr("user"));
         vm.expectRevert("Sender is not the admin.");
-        oracle.setDefaultOracle(address(defaultOracle));
+        oracle.setDefaultOracle(address(defaultOracle), false);
     }
 
     function toArray(address val1) internal pure returns (address[] memory arr) {

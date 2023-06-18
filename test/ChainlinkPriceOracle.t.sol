@@ -58,7 +58,7 @@ contract MockChainlinkAggregator is AggregatorV3Interface {
 
 contract ChainlinkPriceOracleTest is Test {
     function testChailinkOracle() public {
-        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0));
+        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0), false);
         ChainlinkPriceOracle chainlinkOracle = new ChainlinkPriceOracle(address(this));
 
         address token = makeAddr("token 1");
@@ -71,7 +71,7 @@ contract ChainlinkPriceOracleTest is Test {
     }
 
     function testChainlinkNotSetup() public {
-        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0));
+        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0), false);
         ChainlinkPriceOracle chainlinkOracle = new ChainlinkPriceOracle(address(this));
 
         address token = makeAddr("token 1");
@@ -83,7 +83,6 @@ contract ChainlinkPriceOracleTest is Test {
     }
 
     function testTrySettingChailinkOracleAsUser() public {
-        MasterPriceOracle oracle = new MasterPriceOracle(address(this), address(840), address(0));
         ChainlinkPriceOracle chainlinkOracle = new ChainlinkPriceOracle(address(this));
 
         address token = makeAddr("token 1");

@@ -18,7 +18,7 @@ import "./interfaces/BasePriceOracle.sol";
  * - added base currency
  * - added guardian to circuit break oracle
  */
-contract MasterPriceOracle is PriceOracle, BasePriceOracle {
+contract MasterPriceOracle is BasePriceOracle {
     /**
      * @dev Maps underlying token addresses to `PriceOracle` contracts (can be `BasePriceOracle` contracts too).
      */
@@ -28,6 +28,13 @@ contract MasterPriceOracle is PriceOracle, BasePriceOracle {
      * @dev Default/fallback `PriceOracle`.
      */
     BasePriceOracle public defaultOracle;
+
+    /**
+     * @dev Set whever we use defaultOracle as primary source or as a backup
+     *      Set to false when migrating oracle, so default oracle is used as backup
+     *      Set to true when oracle is a user defined one, so default oracle is the primary source
+     */
+    bool public callDefaultFirst;
 
     /**
      * @dev The administrator of this `MasterPriceOracle`.
@@ -55,18 +62,18 @@ contract MasterPriceOracle is PriceOracle, BasePriceOracle {
     /**
      * @dev Event emitted when the default oracle is changed.
      */
-    event NewDefaultOracle(address oldOracle, address newOracle);
+    event NewDefaultOracle(address oldOracle, address newOracle, bool callDefaultFirst);
 
     /**
      * @dev Event emitted when an underlying token's oracle is changed.
      */
-    event NewOracle(address underlying, address oldOracle, address newOracle);
+    event NewOracle(address indexed underlying, address oldOracle, address newOracle);
 
     /**
      * @dev Constructor to initialize state variables.
      * @param _admin The admin who can assign oracles to underlying tokens.
      */
-    constructor(address _admin, address _baseCurrency, address _defaultOracle) {
+    constructor(address _admin, address _baseCurrency, address _defaultOracle, bool _callDefaultFirst) {
         require(
             _defaultOracle == address(0) || BasePriceOracle(_defaultOracle).baseCurrency() == _baseCurrency,
             "Oracle baseCurrency needs to be the same as defaultOracle"
@@ -75,6 +82,7 @@ contract MasterPriceOracle is PriceOracle, BasePriceOracle {
         admin = _admin;
         baseCurrency = _baseCurrency;
         defaultOracle = BasePriceOracle(_defaultOracle);
+        callDefaultFirst = _callDefaultFirst;
     }
 
     /**
@@ -113,7 +121,7 @@ contract MasterPriceOracle is PriceOracle, BasePriceOracle {
     /**
      * @dev Changes the default oracle.
      */
-    function setDefaultOracle(address newOracle) external onlyAdmin {
+    function setDefaultOracle(address newOracle, bool _callDefaultFirst) external onlyAdmin {
         require(
             newOracle == address(0) || BasePriceOracle(newOracle).baseCurrency() == baseCurrency,
             "Oracle baseCurrency needs to be the same as defaultOracle"
@@ -121,7 +129,8 @@ contract MasterPriceOracle is PriceOracle, BasePriceOracle {
 
         PriceOracle oldOracle = defaultOracle;
         defaultOracle = BasePriceOracle(newOracle);
-        emit NewDefaultOracle(address(oldOracle), address(newOracle));
+        callDefaultFirst = _callDefaultFirst;
+        emit NewDefaultOracle(address(oldOracle), address(newOracle), _callDefaultFirst);
     }
 
     /**
@@ -190,13 +199,23 @@ contract MasterPriceOracle is PriceOracle, BasePriceOracle {
             return 1e18;
         }
 
+        bool _callDefaultFirst = callDefaultFirst;
+        BasePriceOracle _defaultOracle = defaultOracle;
+
+        if (_callDefaultFirst && address(_defaultOracle) != address(0)) {
+            try BasePriceOracle(address(_defaultOracle)).price(underlying) returns (uint256 p) {
+                return p;
+            } catch {}
+        }
+
         // Get underlying price from assigned oracle
         PriceOracle oracle = oracles[underlying];
+
         if (address(oracle) != address(0)) {
             return BasePriceOracle(address(oracle)).price(underlying);
         }
-        if (address(defaultOracle) != address(0)) {
-            return BasePriceOracle(address(defaultOracle)).price(underlying);
+        if (!_callDefaultFirst && address(_defaultOracle) != address(0)) {
+            return BasePriceOracle(address(_defaultOracle)).price(underlying);
         }
         revert("Price oracle not found for this underlying token address.");
     }
