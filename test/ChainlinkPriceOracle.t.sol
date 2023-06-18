@@ -10,28 +10,28 @@ import "../src/ChainlinkPriceOracle.sol";
 contract MockOracle is PriceOracle {
     mapping(address => uint256) prices;
 
-    function harnessSetPrice(address underlying, uint256 price) public {
-        prices[underlying] = price;
+    function harnessSetPrice(address underlying, uint256 p) public {
+        prices[underlying] = p;
     }
 
     function price(address underlying) public view returns (uint256) {
-        uint256 price = prices[underlying];
+        uint256 p = prices[underlying];
 
-        require(price != 0, "invalid price");
-        return price;
+        require(p != 0, "invalid price");
+        return p;
     }
 }
 
 contract MockChainlinkAggregator is AggregatorV3Interface {
-    function decimals() external view returns (uint8) {
+    function decimals() external pure returns (uint8) {
         return 8;
     }
 
-    function description() external view returns (string memory) {
+    function description() external pure returns (string memory) {
         return "ETH / USD";
     }
 
-    function version() external view returns (uint256) {
+    function version() external pure returns (uint256) {
         return 1;
     }
 

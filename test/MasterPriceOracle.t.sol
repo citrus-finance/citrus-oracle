@@ -9,15 +9,15 @@ import "../src/MasterPriceOracle.sol";
 contract MockOracle is PriceOracle {
     mapping(address => uint256) prices;
 
-    function harnessSetPrice(address underlying, uint256 price) public {
-        prices[underlying] = price;
+    function harnessSetPrice(address underlying, uint256 p) public {
+        prices[underlying] = p;
     }
 
     function price(address underlying) public view returns (uint256) {
-        uint256 price = prices[underlying];
+        uint256 p = prices[underlying];
 
-        require(price != 0, "invalid price");
-        return price;
+        require(p != 0, "invalid price");
+        return p;
     }
 }
 
